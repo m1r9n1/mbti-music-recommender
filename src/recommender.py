@@ -1,6 +1,6 @@
 import csv
 from typing import List, Dict, Tuple, Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 
 @dataclass
 class Song:
@@ -41,18 +41,18 @@ class Recommender:
         self.songs = songs
 
     def recommend(self, user: UserProfile, k: int = 5) -> List[Song]:
-        # TODO: Implement recommendation logic
-        return self.songs[:k]
+        user_prefs = asdict(user)
+        song_dicts = [asdict(song) for song in self.songs]
+        scored = recommend_songs(user_prefs, song_dicts, k=k)
+        songs_by_id = {song.id: song for song in self.songs}
+        return [songs_by_id[song_dict["id"]] for song_dict, _, _ in scored]
 
     def explain_recommendation(self, user: UserProfile, song: Song) -> str:
-        # TODO: Implement explanation logic
-        return "Explanation placeholder"
+        _, reasons = score_song(asdict(user), asdict(song))
+        return "; ".join(reasons) if reasons else "No matching preferences."
 
 def load_songs(csv_path: str) -> List[Dict]:
-    """
-    Loads songs from a CSV file.
-    Required by src/main.py
-    """
+    """Loads songs from a CSV file, casting numeric fields from str to float/int."""
     int_fields = {"id"}
     float_fields = {"energy", "tempo_bpm", "valence", "danceability", "acousticness"}
 
@@ -67,20 +67,68 @@ def load_songs(csv_path: str) -> List[Dict]:
             songs.append(row)
     return songs
 
+GENRE_MATCH_POINTS = 2.0
+MOOD_MATCH_POINTS = 1.0
+ENERGY_WEIGHT = 1.5
+VALENCE_WEIGHT = 1.0
+TEMPO_WEIGHT = 1.0
+DANCEABILITY_WEIGHT = 1.0
+TEMPO_SCALE = 40.0  # bpm difference beyond this earns zero tempo points
+ACOUSTIC_BONUS = 0.5
+ACOUSTIC_THRESHOLD = 0.6
+
 def score_song(user_prefs: Dict, song: Dict) -> Tuple[float, List[str]]:
-    """
-    Scores a single song against user preferences.
-    Required by recommend_songs() and src/main.py
-    """
-    # TODO: Implement scoring logic using your Algorithm Recipe from Phase 2.
-    # Expected return format: (score, reasons)
-    return []
+    """Scores a song against user preferences, returning (score, reasons)."""
+    score = 0.0
+    reasons = []
+
+    if song["genre"].lower() == user_prefs["favorite_genre"].lower():
+        score += GENRE_MATCH_POINTS
+        reasons.append(f"genre match (+{GENRE_MATCH_POINTS})")
+
+    if song["mood"].lower() == user_prefs["favorite_mood"].lower():
+        score += MOOD_MATCH_POINTS
+        reasons.append(f"mood match (+{MOOD_MATCH_POINTS})")
+
+    energy_points = ENERGY_WEIGHT * max(0.0, 1 - abs(song["energy"] - user_prefs["target_energy"]))
+    if energy_points > 0:
+        score += energy_points
+        reasons.append(f"energy similarity (+{energy_points:.2f})")
+
+    favorite_valence = user_prefs.get("favorite_valence")
+    if favorite_valence is not None:
+        valence_points = VALENCE_WEIGHT * max(0.0, 1 - abs(song["valence"] - favorite_valence))
+        if valence_points > 0:
+            score += valence_points
+            reasons.append(f"valence similarity (+{valence_points:.2f})")
+
+    target_tempo = user_prefs.get("target_tempo")
+    if target_tempo is not None:
+        tempo_diff = abs(song["tempo_bpm"] - target_tempo)
+        tempo_points = TEMPO_WEIGHT * max(0.0, 1 - tempo_diff / TEMPO_SCALE)
+        if tempo_points > 0:
+            score += tempo_points
+            reasons.append(f"tempo similarity (+{tempo_points:.2f})")
+
+    favorite_danceability = user_prefs.get("favorite_danceability")
+    if favorite_danceability is not None:
+        danceability_points = DANCEABILITY_WEIGHT * max(0.0, 1 - abs(song["danceability"] - favorite_danceability))
+        if danceability_points > 0:
+            score += danceability_points
+            reasons.append(f"danceability similarity (+{danceability_points:.2f})")
+
+    if user_prefs.get("likes_acoustic") and song["acousticness"] >= ACOUSTIC_THRESHOLD:
+        score += ACOUSTIC_BONUS
+        reasons.append(f"acoustic bonus (+{ACOUSTIC_BONUS})")
+
+    return round(score, 2), reasons
 
 def recommend_songs(user_prefs: Dict, songs: List[Dict], k: int = 5) -> List[Tuple[Dict, float, str]]:
-    """
-    Functional implementation of the recommendation logic.
-    Required by src/main.py
-    """
-    # TODO: Implement scoring and ranking logic
-    # Expected return format: (song_dict, score, explanation)
-    return []
+    """Scores every song, then returns the top k as (song, score, explanation) tuples."""
+    scored = [
+        (song, score, "; ".join(reasons))
+        for song in songs
+        for score, reasons in [score_song(user_prefs, song)]
+    ]
+    scored.sort(key=lambda entry: entry[1], reverse=True)
+    return scored[:k]
