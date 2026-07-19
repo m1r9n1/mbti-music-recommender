@@ -14,3 +14,13 @@ id,title,artist,genre,mood,energy,tempo_bpm,valence,danceability,acousticness
 13,Thunderstruck,AC/DC,rock,intense,0.95,133,0.65,0.61,0.03
 14,Busy Earnin',Jungle,funk,happy,0.80,122,0.83,0.85,0.15
 15,Titi Me Pregunto,Bad Bunny,reggaeton,happy,0.88,130,0.86,0.90,0.10
+16,No Role Modelz,J. Cole,hip hop,moody,0.55,100,0.45,0.68,0.20
+17,Felices los 4,Maluma,latin pop,happy,0.82,96,0.83,0.87,0.12
+18,Say So,Doja Cat,pop,happy,0.78,113,0.79,0.86,0.10
+19,Kings and Queens,30 Seconds to Mars,rock,intense,0.90,140,0.55,0.58,0.06
+20,Crazy Train,Ozzy Osbourne,rock,intense,0.93,138,0.52,0.55,0.04
+21,Yonaguni,Bad Bunny,reggaeton,chill,0.58,100,0.55,0.72,0.30
+22,Sativa,Jhene Aiko,r&b,chill,0.45,90,0.50,0.60,0.60
+23,The Kill,30 Seconds to Mars,rock,intense,0.88,128,0.48,0.52,0.05
+24,Woman,Doja Cat,pop,happy,0.72,100,0.75,0.80,0.15
+25,Back In Black,AC/DC,rock,intense,0.90,96,0.60,0.58,0.04

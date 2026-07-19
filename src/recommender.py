@@ -67,7 +67,7 @@ def load_songs(csv_path: str) -> List[Dict]:
             songs.append(row)
     return songs
 
-GENRE_MATCH_POINTS = 2.0
+GENRE_MATCH_POINTS = 0.5
 MOOD_MATCH_POINTS = 1.0
 ENERGY_WEIGHT = 1.5
 VALENCE_WEIGHT = 1.0
@@ -76,6 +76,7 @@ DANCEABILITY_WEIGHT = 1.0
 TEMPO_SCALE = 40.0  # bpm difference beyond this earns zero tempo points
 ACOUSTIC_BONUS = 0.5
 ACOUSTIC_THRESHOLD = 0.6
+ARTIST_REPEAT_PENALTY = 1.0  # subtracted per already-selected song from the same artist
 
 def score_song(user_prefs: Dict, song: Dict) -> Tuple[float, List[str]]:
     """Scores a song against user preferences, returning (score, reasons)."""
@@ -124,11 +125,29 @@ def score_song(user_prefs: Dict, song: Dict) -> Tuple[float, List[str]]:
     return round(score, 2), reasons
 
 def recommend_songs(user_prefs: Dict, songs: List[Dict], k: int = 5) -> List[Tuple[Dict, float, str]]:
-    """Scores every song, then returns the top k as (song, score, explanation) tuples."""
-    scored = [
-        (song, score, "; ".join(reasons))
+    """Scores every song, then greedily picks the top k, applying a soft penalty
+    for each additional song already selected from the same artist so listeners
+    are more likely to be exposed to new artists rather than repeats."""
+    remaining = [
+        (song, score, reasons)
         for song in songs
         for score, reasons in [score_song(user_prefs, song)]
     ]
-    scored.sort(key=lambda entry: entry[1], reverse=True)
-    return scored[:k]
+
+    selected = []
+    artist_counts: Dict[str, int] = {}
+    for _ in range(min(k, len(remaining))):
+        best_index = 0
+        best_effective_score = float("-inf")
+        for index, (song, score, _reasons) in enumerate(remaining):
+            repeat_count = artist_counts.get(song["artist"], 0)
+            effective_score = score - ARTIST_REPEAT_PENALTY * repeat_count
+            if effective_score > best_effective_score:
+                best_effective_score = effective_score
+                best_index = index
+
+        song, score, reasons = remaining.pop(best_index)
+        artist_counts[song["artist"]] = artist_counts.get(song["artist"], 0) + 1
+        selected.append((song, score, "; ".join(reasons)))
+
+    return selected
