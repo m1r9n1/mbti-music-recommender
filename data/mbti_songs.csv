@@ -1,0 +1,81 @@
+id,title,artist,genre,traits,description
+1,Dog Days Are Over,Florence + the Machine,indie pop,INFP|idealistic|dreamy|introspective,A euphoric release of letting go of fear and embracing hope for what's ahead.
+2,Skinny Love,Bon Iver,folk,INFP|melancholic|romantic|sensitive,A raw, aching confession about love that feels too fragile to hold together.
+3,The Night We Met,Lord Huron,indie folk,INFP|nostalgic|wistful|emotional,A haunting wish to rewind time and undo a painful goodbye.
+4,Bloom,The Paper Kites,indie folk,INFP|gentle|imaginative|tender,A soft meditation on patience and the slow unfolding of love.
+5,Holocene,Bon Iver,indie folk,INFP|reflective|solitary|poetic,A quiet reckoning with feeling small yet deeply connected to the world.
+6,Fix You,Coldplay,alternative rock,INFJ|empathetic|healing|compassionate,A comforting promise to help mend someone through their darkest moments.
+7,Vienna,Billy Joel,soft rock,INFJ|wise|patient|introspective,A gentle reminder that self-worth doesn't require rushing toward success.
+8,Breathe Me,Sia,art pop,INFJ|vulnerable|seeking|deep,A quiet plea for closeness from someone struggling to hold themselves together.
+9,Landslide,Fleetwood Mac,folk rock,INFJ|reflective|growth-oriented|intuitive,A tender look at change, aging, and trusting your own inner voice.
+10,Hallelujah,Jeff Buckley,ballad,INFJ|spiritual|melancholic|profound,A layered meditation on love, faith, and imperfect devotion.
+11,Somewhere Only We Know,Keane,alternative rock,ENFP|nostalgic|adventurous|warm,An earnest search for a hidden place of comfort and shared memory.
+12,Walking on Sunshine,Katrina and the Waves,pop rock,ENFP|joyful|energetic|optimistic,An infectious burst of pure happiness after falling for someone new.
+13,Good Days,SZA,r&b,ENFP|hopeful|free-spirited|reflective,A hard-won embrace of optimism after moving past personal turmoil.
+14,Shut Up and Dance,Walk the Moon,pop rock,ENFP|spontaneous|playful|exuberant,An impulsive, electric moment of connection on a crowded dance floor.
+15,Free Fallin',Tom Petty,rock,ENFP|carefree|restless|romantic,A breezy anthem about chasing feeling over certainty in love and life.
+16,Where Is My Mind,Pixies,alternative rock,ENTP|unconventional|curious|chaotic,A surreal, restless exploration of losing and questioning one's own reality.
+17,Feel Good Inc.,Gorillaz,alternative hip hop,ENTP|witty|inventive|energetic,A genre-bending critique of hollow happiness wrapped in playful absurdity.
+18,Pumped Up Kicks,Foster the People,indie pop,ENTP|provocative|clever|unsettling,A deceptively upbeat song hiding a dark, thought-provoking narrative twist.
+19,Take Me Out,Franz Ferdinand,indie rock,ENTP|bold|charismatic|quick-witted,A restless, flirtatious dare wrapped in sharp rhythmic energy.
+20,Are You Gonna Be My Girl,Jet,garage rock,ENTP|impulsive|charming|high-energy,A fast-talking, magnetic pursuit of spontaneous connection.
+21,In My Life,The Beatles,rock,ENFJ|nostalgic|sincere|loving,A heartfelt tribute to the people and places that shaped who you are.
+22,Man in the Mirror,Michael Jackson,pop,ENFJ|inspiring|purposeful|compassionate,A rallying call to lead change by first transforming yourself.
+23,Rise Up,Andra Day,soul,ENFJ|empowering|resilient|hopeful,A powerful anthem of standing strong for others through adversity.
+24,Brave,Sara Bareilles,pop,ENFJ|encouraging|expressive|warm,An uplifting push for someone to finally speak their truth.
+25,Better Together,Jack Johnson,acoustic pop,ENFJ|nurturing|community-minded|warm,A laid-back celebration of connection and mutual support.
+26,Imagine,John Lennon,soft rock,INTJ|visionary|idealistic|contemplative,A sweeping call to reimagine the world beyond current divisions.
+27,Clint Eastwood,Gorillaz,alternative hip hop,INTJ|detached|strategic|cerebral,A cool, calculated meditation on resilience and outlasting doubt.
+28,Everlong,Foo Fighters,alternative rock,INTJ|intense|driven|singular,A relentless pursuit of one all-consuming, defining connection.
+29,No Surprises,Radiohead,alternative rock,INTJ|disillusioned|analytical|quiet,A subdued critique of a life reduced to comfortable numbness.
+30,Numb,Linkin Park,nu metal,INTJ|overburdened|independent|guarded,A frustrated demand to be seen beyond others' expectations.
+31,Blinding Lights,The Weeknd,synth-pop,ENTJ|driven|relentless|urgent,A high-energy chase through night and self-destruction toward connection.
+32,Stronger,Kanye West,hip hop,ENTJ|ambitious|commanding|resilient,A defiant declaration that hardship only sharpens strength and drive.
+33,Can't Hold Us,Macklemore & Ryan Lewis,hip hop,ENTJ|triumphant|bold|unstoppable,A high-octane celebration of ambition finally paying off.
+34,Eye of the Tiger,Survivor,rock,ENTJ|competitive|focused|powerful,A pump-up anthem for pushing through to claim ultimate victory.
+35,Power,Kanye West,hip hop,ENTJ|assertive|dominant|self-assured,A bold assertion of control amid chaos and rising pressure.
+36,Breathe (2 AM),Anna Nalick,pop rock,ISFP|sensitive|artistic|honest,A vulnerable release of everything held in during a quiet late night.
+37,Ho Hey,The Lumineers,folk,ISFP|earnest|romantic|gentle,A simple, heartfelt declaration of devotion stripped of pretense.
+38,Yellow,Coldplay,alternative rock,ISFP|tender|admiring|dreamy,A quiet, glowing expression of love compared to something beautifully simple.
+39,Banana Pancakes,Jack Johnson,acoustic,ISFP|laid-back|affectionate|content,A relaxed invitation to stay in and savor a slow, easy morning.
+40,The A Team,Ed Sheeran,acoustic pop,ISFP|compassionate|observant|melancholic,A gentle, sorrowful portrait of a struggling woman told with care.
+41,Riptide,Vance Joy,indie folk,ISFJ|whimsical|devoted|comforting,A charmingly awkward and sincere love song about steady affection.
+42,Home,Edward Sharpe & the Magnetic Zeros,indie folk,ISFJ|warm|grounded|nostalgic,A cozy celebration of belonging and finding home in another person.
+43,I Will Follow You into the Dark,Death Cab for Cutie,indie rock,ISFJ|loyal|devoted|tender,A quiet vow of unwavering companionship through life and beyond.
+44,Budapest,George Ezra,folk pop,ISFJ|selfless|loving|simple,A sincere declaration that love matters more than any possession.
+45,Photograph,Ed Sheeran,pop,ISFJ|sentimental|caring|nostalgic,A soft promise to hold onto memories and love despite distance.
+46,Bring Me to Life,Evanescence,rock,ISTP|guarded|intense|awakening,A powerful plea to feel something real after emotional numbness.
+47,Seven Nation Army,The White Stripes,rock,ISTP|independent|gritty|minimalist,A stripped-down, defiant march built on raw instinct and grit.
+48,Radioactive,Imagine Dragons,alternative rock,ISTP|resilient|adaptive|bold,An anthem of rebuilding strength after personal collapse.
+49,Chop Suey!,System of a Down,alternative metal,ISTP|intense|rebellious|raw,A chaotic, confrontational reckoning with self-destruction and judgment.
+50,Longview,Green Day,punk rock,ISTP|restless|apathetic|blunt,A candid, sardonic take on boredom and directionless energy.
+51,Thunderstruck,AC/DC,rock,ESTP|electric|bold|action-driven,A high-voltage rush built for pure adrenaline and momentum.
+52,Sweet Child O' Mine,Guns N' Roses,rock,ESTP|passionate|spontaneous|charismatic,A wild, magnetic tribute to a captivating, unpredictable love.
+53,Livin' on a Prayer,Bon Jovi,rock,ESTP|gritty|hopeful|tenacious,A blue-collar anthem about holding on through hardship together.
+54,Welcome to the Jungle,Guns N' Roses,rock,ESTP|fearless|reckless|thrill-seeking,A brash introduction to chaos, danger, and living fast.
+55,Hey Ya!,OutKast,funk pop,ESTP|playful|impulsive|charismatic,An upbeat, restless anthem about instability disguised as celebration.
+56,Uptown Funk,Bruno Mars,funk pop,ESFP|flashy|confident|fun-loving,A high-energy strut built entirely around swagger and celebration.
+57,Good as Hell,Lizzo,pop,ESFP|liberated|bold|self-assured,A joyful anthem of self-love and cutting loose without apology.
+58,Levitating,Dua Lipa,disco pop,ESFP|vibrant|flirtatious|carefree,A glittering, feel-good escape into rhythm and infatuation.
+59,I Wanna Dance with Somebody,Whitney Houston,pop,ESFP|exuberant|social|romantic,A radiant craving for connection found on the dance floor.
+60,24K Magic,Bruno Mars,funk pop,ESFP|extravagant|playful|celebratory,An all-out party anthem dripping with confidence and flash.
+61,Ophelia,The Lumineers,indie folk,ISTJ|steady|earnest|devoted,A grounded, patient plea for reconnection with someone drifting away.
+62,The Sound of Silence,Simon & Garfunkel,folk rock,ISTJ|contemplative|disciplined|solemn,A measured, sobering reflection on isolation and unheard truths.
+63,Society,Eddie Vedder,folk,ISTJ|principled|reserved|reflective,A quiet rejection of superficial values in favor of simplicity.
+64,Time,Pink Floyd,progressive rock,ISTJ|methodical|reflective|cautionary,A sobering meditation on wasted time and the discipline to act.
+65,Africa,Toto,soft rock,ISTJ|steadfast|devoted|nostalgic,A steady, enduring promise of loyalty across distance and time.
+66,Don't Stop Believin',Journey,rock,ESFJ|encouraging|community-minded|hopeful,A warm, communal anthem about holding onto hope together.
+67,Lovely Day,Bill Withers,soul,ESFJ|cheerful|grateful|warm,A sunny, grounded celebration of gratitude and everyday joy.
+68,Count on Me,Bruno Mars,pop,ESFJ|dependable|caring|reassuring,A steady promise of loyal support through any hardship.
+69,Lean on Me,Bill Withers,soul,ESFJ|supportive|selfless|warm,A heartfelt offer of strength to anyone carrying a heavy load.
+70,I'll Be There for You,The Rembrandts,pop rock,ESFJ|loyal|warm|reassuring,A cheerful pledge of unwavering friendship through life's ups and downs.
+71,Take Five,Dave Brubeck Quartet,jazz,INTP|analytical|unconventional|composed,An intellectually curious piece built on an unusual, precisely calculated rhythm.
+72,Clocks,Coldplay,alternative rock,INTP|analytical|searching|detached,A racing, cerebral meditation on time slipping away amid unresolved questions.
+73,Shape of You,Ed Sheeran,pop,ESTJ|direct|confident|practical,A confident, straightforward pursuit of chemistry and attraction.
+74,Firework,Katy Perry,pop,ESTJ|motivating|decisive|encouraging,A rousing call to lead by example and help others recognize their potential.
+75,High Hopes,Panic! At The Disco,pop rock,ESTJ|ambitious|disciplined|goal-driven,A bold, methodical push toward big goals despite the odds.
+76,Chasing Cars,Snow Patrol,alternative rock,ESTJ|steadfast|devoted|grounded,A steady, grounded wish to slow down and stay fully present with someone dependable.
+77,Fireflies,Owl City,electropop,INTP|imaginative|curious|introspective,A wandering, imaginative journey through a restless, overactive mind.
+78,Circles,Post Malone,pop rock,INTP|overthinking|analytical|reflective,A wistful, analytical recognition of a relationship's repeating, unbreakable pattern.
+79,Viva la Vida,Coldplay,alternative rock,ESTJ|authoritative|dutiful|structured,A sweeping fall from power that reflects on order, duty, and ambition lost.
+80,Stressed Out,Twenty One Pilots,alternative hip hop,INTP|anxious|nostalgic|analytical,A restless longing for simpler days amid adult uncertainty and overthinking.
