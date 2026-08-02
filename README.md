@@ -1,324 +1,309 @@
-# 🎵 Music Recommender Simulation
+# MBTI Music Recommender
+
+> **Advisory:** This is a fun, exploratory tool based on MBTI's popular
+> framework, not a clinical psychological assessment.
 
 ## Project Summary
 
-In this project you will build and explain a small music recommender system.
-
-Your goal is to:
-
-- Represent songs and a user "taste profile" as data
-- Design a scoring rule that turns that data into recommendations
-- Evaluate what your system gets right and wrong
-- Reflect on how this mirrors real world AI recommenders
-
-Replace this paragraph with your own summary of what your version does.
+**MBTI Music Recommender** is a small music recommender that uses
+retrieval-augmented generation (RAG). A listener enters their MBTI
+personality type. The system finds the songs in its catalog that are the
+closest semantic match to that type's traits. Then it uses an LLM (Gemini)
+to write a short recommendation summary that stays grounded in those
+retrieved songs. This project matters because it is a simple, complete
+example of a retrieval, ranking, and LLM-generation pipeline. It includes
+real guardrails, such as input validation, grounded generation, and
+graceful fallbacks, instead of just a bare API call. Real recommendation and search systems use this same basic shape. This
+project just uses a smaller, simpler version with one CSV file as its
+catalog.
 
 ---
 
-## How The System Works
+## Original Project (Modules 1–3)
 
-Explain your design in plain language.
-  - For my design, each song in the system carries the following features: id, title, artist, genre, mood, energy, tempo_bpm, valence, danceability, and acousticness. The recommender is built around the listener's taste, using four required preferences (favorite_genre, favorite_mood, target_energy, and likes_acoustic) plus three optional ones (target_tempo, favorite_valence, and favorite_danceability). It uses a Scoring Rule and a Ranking Rule to figure out how well a song fits. The Scoring Rule gives a song points for a genre match and a bigger bump for a mood match, then adds similarity points based on how close the song's energy, valence, tempo, and danceability are to the listener's targets, plus a small bonus if the listener likes acoustic songs and the song is highly acoustic. The Ranking Rule then sorts every scored song from best to worst and returns the top few to the listener.
+This project extends **Music Recommender Simulation**, the scoring-based
+recommender built in Modules 1 to 3. That original system gave each song a
+set of fixed features, such as genre, mood, energy, tempo, valence,
+danceability, and acousticness. It also gave each listener a matching
+preference profile. Then it used a hand-weighted scoring rule to rank the
+catalog. That rule gave points for exact genre and mood matches, added
+points for how close a song's traits were to the listener's preferences,
+and applied a soft penalty for repeat artists. The system returned the
+top-k songs, each with a plain-text explanation of its score. It had no
+retrieval, no embeddings, and no LLM. Every part of the score was written
+by hand.
 
-  ```bash
-  data/songs.csv
-      │
-      ▼
-load_songs(csv_path)                     [recommender.py]
-   - csv.DictReader over the file
-   - cast numeric fields (energy, tempo_bpm, valence,
-     danceability, acousticness) from str -> float
-   - return List[Dict]  (one dict per song row)
-      │
-      ▼
-main.py: user_prefs = {...}              (dict, hardcoded for now)
-      │
-      ▼
-recommend_songs(user_prefs, songs, k=5)  [recommender.py]
-      │
-      ├─► for each song in songs:
-      │        score_song(user_prefs, song)
-      │            - apply the recipe (genre/mood/energy/valence/
-      │              tempo/acoustic points from the finalized table)
-      │            - build a reasons list as points are earned
-      │            - return (score, reasons)
-      │
-      ├─► collect (song, score, "; ".join(reasons)) tuples
-      │
-      ├─► sort by score, descending
-      │
-      └─► return top k tuples
-      │
-      ▼
-main.py: loop over recommendations
-   - print title, score, explanation
-```
-  - Note: One thing I noticed is that the Scoring Rule only checks for an exact match on genre and mood, so a song like "indie pop" or "energetic" would get zero credit even if it's really close to what the listener wants, which means the system ends up favoring whatever exact labels are already in the catalog.
+This version keeps the same overall shape. It still loads a catalog, ranks
+it against a listener profile, and explains the ranking. What changed is
+the ranking method: instead of the hand-weighted scoring rule, this
+version uses MBTI-based semantic retrieval, and it adds an LLM-generated
+summary on top of the results. See [model_card.md](model_card.md) for a
+fuller comparison of the two systems, including their data and
+evaluation.
+
 ---
 
-## Getting Started
+## Architecture Overview
 
-### Setup
+See [diagrams/architecture.md](diagrams/architecture.md) for the full
+Mermaid system diagram. Here is a short summary of the pipeline:
 
-1. Create a virtual environment (optional but recommended):
+1. **`main.py`** asks the user for an MBTI type. If the input is not valid,
+   it asks again. Then it loads the song catalog.
+2. **`retriever.py`** embeds every song's traits and description with a
+   local `sentence-transformers` model. It builds a query from the MBTI
+   type, then ranks the whole catalog by cosine similarity to that query.
+3. **`recommender.py`** re-ranks those results and adds a small bonus for
+   songs that are an exact match for the MBTI type. It then sends the
+   top-k songs to Gemini, using a prompt that forbids mentioning any song
+   outside that list. If the Gemini call fails, it falls back to a plain
+   summary that is not generated by an LLM.
+4. **`main.py`** prints the summary, then prints each song along with its
+   similarity score as an explanation.
+
+Two error paths are handled on purpose, instead of being left to crash the
+program: a missing or malformed catalog file, and a missing
+`GEMINI_API_KEY`. Both are caught inside `main()` and reported with a clear,
+actionable message. Two checks verify that the pipeline works correctly:
+automated tests (`tests/test_retriever.py` and `tests/test_recommender.py`)
+and a human reading the CLI output.
+
+---
+
+## Setup Instructions
+
+### Prerequisites
+
+- Python 3.10+
+- A free Gemini API key (only needed for the summary step — retrieval runs
+  entirely offline): https://aistudio.google.com/apikey
+
+### Steps
+
+1. Create and activate a virtual environment (optional but recommended):
 
    ```bash
    python -m venv .venv
    source .venv/bin/activate      # Mac or Linux
    .venv\Scripts\activate         # Windows
+   ```
 
-2. Install dependencies
+2. Install dependencies:
 
-```bash
-pip install -r requirements.txt
-```
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-3. Run the app:
+3. Configure your API key — copy the example env file and fill in your key:
 
-```bash
-python -m src.main
-```
+   ```bash
+   cp .env.example .env        # Mac/Linux
+   copy .env.example .env      # Windows
+   ```
+
+   Then edit `.env` and set:
+
+   ```
+   GEMINI_API_KEY=your-key-here
+   ```
+
+   If `GEMINI_API_KEY` is missing, the app exits immediately with a clear
+   error message telling you how to fix it, instead of a raw crash.
+
+4. Run the app from the project root (so the `data/` folder is reachable):
+
+   ```bash
+   python -m src.main
+   ```
+
+   You'll be prompted for an MBTI type (e.g. `INFP`); the app re-prompts on
+   an invalid entry until a valid one is given.
 
 ### Running Tests
-
-Run the starter tests with:
 
 ```bash
 pytest
 ```
 
-You can add more tests in `tests/test_recommender.py`.
+Tests cover both the retriever (`tests/test_retriever.py`) and the
+recommender (`tests/test_recommender.py`, including a grounding check on
+the generated summary), and don't require a Gemini API key.
 
 ---
 
-## Sample Recommendation Output
+## Sample Interactions
+
+All three runs below are output from `python -m src.main`
+(logging lines omitted for readability).
+
+### 1. Valid input — INFP
 
 ```
-Loaded songs: 15
+Enter your MBTI type (e.g. INFP): INFP
 
-Top Recommendations
+Top Recommendations for INFP
 ========================================
 
-1. Sunrise City by Neon Echo  [Score: 6.38]
-     - genre match (+2.0)
-     - mood match (+1.0)
-     - energy similarity (+1.47)
-     - valence similarity (+0.96)
-     - tempo similarity (+0.95)
+As an INFP listener, these songs align directly with your personality type by exploring reflective, dreamy, and emotional themes. "Dog Days Are Over" by Florence + the Machine provides an idealistic release of embracing hope, while "Bloom" by The Paper Kites offers a gentle and imaginative meditation on love. You will also find a reflective and solitary perspective in "Holocene" by Bon Iver, paired alongside the melancholic and sensitive confession in "Skinny Love" by Bon Iver. Lastly, "The Night We Met" by Lord Huron brings a nostalgic and wistful wish to rewind time, completing a selection tailored specifically to INFP traits.
 
-2. Gym Hero by Max Pulse  [Score: 4.97]
-     - genre match (+2.0)
-     - energy similarity (+1.30)
-     - valence similarity (+0.97)
-     - tempo similarity (+0.70)
+1. Dog Days Are Over by Florence + the Machine  [semantic similarity to INFP traits: 0.70]
+     - MBTI type: INFP
+     - A euphoric release of letting go of fear and embracing hope for what's ahead.
 
-3. Busy Earnin' by Jungle  [Score: 4.42]
-     - mood match (+1.0)
-     - energy similarity (+1.50)
-     - valence similarity (+0.97)
-     - tempo similarity (+0.95)
+2. Skinny Love by Bon Iver  [semantic similarity to INFP traits: 0.60]
+     - MBTI type: INFP
+     - A raw, aching confession about love that feels too fragile to hold together.
 
-4. Rooftop Lights by Indigo Parade  [Score: 4.33]
-     - mood match (+1.0)
-     - energy similarity (+1.44)
-     - valence similarity (+0.99)
-     - tempo similarity (+0.90)
+3. Bloom by The Paper Kites  [semantic similarity to INFP traits: 0.58]
+     - MBTI type: INFP
+     - A soft meditation on patience and the slow unfolding of love.
 
-5. Titi Me Pregunto by Bad Bunny  [Score: 4.07]
-     - mood match (+1.0)
-     - energy similarity (+1.38)
-     - valence similarity (+0.94)
-     - tempo similarity (+0.75)
+4. Holocene by Bon Iver  [semantic similarity to INFP traits: 0.46]
+     - MBTI type: INFP
+     - A quiet reckoning with feeling small yet deeply connected to the world.
+
+5. The Night We Met by Lord Huron  [semantic similarity to INFP traits: 0.41]
+     - MBTI type: INFP
+     - A haunting wish to rewind time and undo a painful goodbye.
+```
+
+### 2. Valid input — ENTP
+
+```
+Enter your MBTI type (e.g. INFP): ENTP
+
+Top Recommendations for ENTP
+========================================
+
+As an ENTP, you thrive on inventive, high-energy music that matches your witty and unconventional intellect. Driven tracks like "Are You Gonna Be My Girl" by Jet and "Take Me Out" by Franz Ferdinand capture your charismatic, impulsive edge with fast-talking, bold momentum. To satisfy your clever and provocative side, "Feel Good Inc." by Gorillaz and "Pumped Up Kicks" by Foster the People deliver sharp, thought-provoking commentary wrapped in playful, dynamic soundscapes. Rounding out the playlist, "Where Is My Mind" by Pixies feeds your restless curiosity with a surreal, chaotic dive into questioning reality.
+
+1. Feel Good Inc. by Gorillaz  [semantic similarity to ENTP traits: 0.60]
+     - MBTI type: ENTP
+     - A genre-bending critique of hollow happiness wrapped in playful absurdity.
+
+2. Take Me Out by Franz Ferdinand  [semantic similarity to ENTP traits: 0.60]
+     - MBTI type: ENTP
+     - A restless, flirtatious dare wrapped in sharp rhythmic energy.
+
+3. Are You Gonna Be My Girl by Jet  [semantic similarity to ENTP traits: 0.57]
+     - MBTI type: ENTP
+     - A fast-talking, magnetic pursuit of spontaneous connection.
+
+4. Where Is My Mind by Pixies  [semantic similarity to ENTP traits: 0.47]
+     - MBTI type: ENTP
+     - A surreal, restless exploration of losing and questioning one's own reality.
+
+5. Pumped Up Kicks by Foster the People  [semantic similarity to ENTP traits: 0.39]
+     - MBTI type: ENTP
+     - A deceptively upbeat song hiding a dark, thought-provoking narrative twist.
+```
+
+### 3. Invalid input, then a valid retry — guardrail demonstration
+
+Input validation rejects an unrecognized MBTI type and re-prompts instead
+of crashing or guessing a type:
+
+```
+Enter your MBTI type (e.g. INFP): xyz
+Unknown MBTI type: 'XYZ'. Valid types: ENFJ, ENFP, ENTJ, ENTP, ESFJ, ESFP, ESTJ, ESTP, INFJ, INFP, INTJ, INTP, ISFJ, ISFP, ISTJ, ISTP
+Enter your MBTI type (e.g. INFP): INTJ
+
+Top Recommendations for INTJ
+========================================
+...
 ```
 
 ---
 
-## Experiments You Tried
-```
-Loaded songs: 25
+## Design Decisions
 
-Starter profile
-========================================
-
-1. Sunrise City by Neon Echo  [Score: 5.79]
-     - genre match (+0.5)
-     - mood match (+1.0)
-     - energy similarity (+1.47)
-     - valence similarity (+0.96)
-     - tempo similarity (+0.95)
-     - danceability similarity (+0.91)
-
-2. Say So by Doja Cat  [Score: 5.62]
-     - genre match (+0.5)
-     - mood match (+1.0)
-     - energy similarity (+1.47)
-     - valence similarity (+0.99)
-     - tempo similarity (+0.82)
-     - danceability similarity (+0.84)
-
-3. Busy Earnin' by Jungle  [Score: 5.27]
-     - mood match (+1.0)
-     - energy similarity (+1.50)
-     - valence similarity (+0.97)
-     - tempo similarity (+0.95)
-     - danceability similarity (+0.85)
-
-4. Rooftop Lights by Indigo Parade  [Score: 5.21]
-     - mood match (+1.0)
-     - energy similarity (+1.44)
-     - valence similarity (+0.99)
-     - tempo similarity (+0.90)
-     - danceability similarity (+0.88)
-
-5. Titi Me Pregunto by Bad Bunny  [Score: 4.87]
-     - mood match (+1.0)
-     - energy similarity (+1.38)
-     - valence similarity (+0.94)
-     - tempo similarity (+0.75)
-     - danceability similarity (+0.80)
-
-
-A: Pop/happy tie test (Sunrise City vs. Say So)
-========================================
-
-1. Sunrise City by Neon Echo  [Score: 4.84]
-     - genre match (+0.5)
-     - mood match (+1.0)
-     - energy similarity (+1.47)
-     - valence similarity (+0.96)
-     - danceability similarity (+0.91)
-
-2. Say So by Doja Cat  [Score: 4.80]
-     - genre match (+0.5)
-     - mood match (+1.0)
-     - energy similarity (+1.47)
-     - valence similarity (+0.99)
-     - danceability similarity (+0.84)
-
-3. Busy Earnin' by Jungle  [Score: 4.32]
-     - mood match (+1.0)
-     - energy similarity (+1.50)
-     - valence similarity (+0.97)
-     - danceability similarity (+0.85)
-
-4. Rooftop Lights by Indigo Parade  [Score: 4.31]
-     - mood match (+1.0)
-     - energy similarity (+1.44)
-     - valence similarity (+0.99)
-     - danceability similarity (+0.88)
-
-5. Felices los 4 by Maluma  [Score: 4.27]
-     - mood match (+1.0)
-     - energy similarity (+1.47)
-     - valence similarity (+0.97)
-     - danceability similarity (+0.83)
-
-
-B: Rock/intense cluster density
-========================================
-
-1. Storm Runner by Voltline  [Score: 3.89]
-     - genre match (+0.5)
-     - mood match (+1.0)
-     - energy similarity (+1.44)
-     - tempo similarity (+0.95)
-
-2. Kings and Queens by 30 Seconds to Mars  [Score: 3.67]
-     - genre match (+0.5)
-     - mood match (+1.0)
-     - energy similarity (+1.43)
-     - tempo similarity (+0.75)
-
-3. Crazy Train by Ozzy Osbourne  [Score: 3.67]
-     - genre match (+0.5)
-     - mood match (+1.0)
-     - energy similarity (+1.47)
-     - tempo similarity (+0.70)
-
-4. Thunderstruck by AC/DC  [Score: 3.58]
-     - genre match (+0.5)
-     - mood match (+1.0)
-     - energy similarity (+1.50)
-     - tempo similarity (+0.57)
-
-5. Gym Hero by Max Pulse  [Score: 3.02]
-     - mood match (+1.0)
-     - energy similarity (+1.47)
-     - tempo similarity (+0.55)
-
-
-C: 'latin pop' substring collision
-========================================
-
-1. Sunrise City by Neon Echo  [Score: 2.97]
-     - genre match (+0.5)
-     - mood match (+1.0)
-     - energy similarity (+1.47)
-
-2. Say So by Doja Cat  [Score: 2.97]
-     - genre match (+0.5)
-     - mood match (+1.0)
-     - energy similarity (+1.47)
-
-3. Busy Earnin' by Jungle  [Score: 2.50]
-     - mood match (+1.0)
-     - energy similarity (+1.50)
-
-4. Felices los 4 by Maluma  [Score: 2.47]
-     - mood match (+1.0)
-     - energy similarity (+1.47)
-
-5. Rooftop Lights by Indigo Parade  [Score: 2.44]
-     - mood match (+1.0)
-     - energy similarity (+1.44)
-
-
-D: Mood isolation within one genre (hip hop)
-========================================
-
-1. No Role Modelz by J. Cole  [Score: 3.88]
-     - genre match (+0.5)
-     - mood match (+1.0)
-     - energy similarity (+1.42)
-     - tempo similarity (+0.95)
-
-2. Night Drive Loop by Neon Echo  [Score: 2.83]
-     - mood match (+1.0)
-     - energy similarity (+1.12)
-     - tempo similarity (+0.70)
-
-3. The Worst by Jhene Aiko  [Score: 2.70]
-     - mood match (+1.0)
-     - energy similarity (+1.32)
-     - tempo similarity (+0.38)
-
-4. California Love by 2Pac  [Score: 2.42]
-     - genre match (+0.5)
-     - energy similarity (+0.98)
-     - tempo similarity (+0.95)
-
-5. Yonaguni by Bad Bunny  [Score: 2.33]
-     - energy similarity (+1.38)
-     - tempo similarity (+0.95)
-```
-For my experiments, I mainly tried to break my own scoring logic before trusting it. I built a few adversarial profiles on purpose: a pop and happy tie between two songs, a rock and intense cluster where several songs land close in score, a genre string test with "latin pop" that could accidentally match "pop" if I was not careful, and a hip hop profile meant to isolate mood from genre. Running these against my catalog is how I actually found the things worth changing.
-
-- **Genre weight, 2.0 to 0.5:** At 2.0, genre acted like a hard filter, so a matching song almost always won no matter how well a non-matching song fit everything else. At 0.5, genre became more of a light nudge instead. "Titi Me Pregunto" by Bad Bunny is a good example, since it missed the top 5 entirely at weight 2.0 but jumped into 5th at 0.5 on energy, valence, and danceability alone. That is the vibe matched behavior I wanted, since it can expose someone to a new genre instead of just recycling what they already said they like.
-- **Genre string matching, "latin pop" vs "pop":** genre matching is exact string equality after lowercasing, so I wanted to confirm "latin pop" would not accidentally get treated as a match for "pop" just because one contains the other. Running favorite_genre equal to "pop" correctly gave Maluma's song zero genre points, and flipping it to favorite_genre equal to "latin pop" correctly sent that same song to 1st place. The matching logic held up fine, it is just easy to misread a result like that without checking which profile produced it.
-- **Adding an artist repeat penalty:** I noticed an artist with two or three good songs could take up multiple slots in one top 5 list, which works against exposing the listener to new things. I added a soft penalty, ARTIST_REPEAT_PENALTY = 1.0, subtracted each time another song from an already picked artist shows up. I tested this with LoRoom, AC/DC, 30 Seconds to Mars, Doja Cat, Bad Bunny, and Jhene Aiko, each having a second song in the running. The penalty does not hard block repeats, so a strong enough second song can still make the list.
+- **Local embeddings for finding songs, Gemini only for the summary.**
+  Running `sentence-transformers` locally is free, fast, and works without
+  internet access or rate limits. Gemini is only called for the one part
+  that actually needs it, the written summary. Because of this, the app
+  can still find and show songs even without an API key. Only the summary
+  would be missing.
+- **A small bonus for exact MBTI matches, instead of a hard rule.**
+  `SongRetriever.retrieve()` just looks for songs that sound similar to
+  the searched trait words. It does not know or care what MBTI type a
+  song is tagged with. So `recommender.py` adds `EXACT_TYPE_MATCH_BONUS`,
+  a small boost for songs tagged with the exact MBTI type searched for.
+  This is not a strict rule, since a song from a different type could
+  still be a good match. The bonus just gives matching types a slight
+  edge without ruling out other good results.
+- **The prompt tells Gemini to stay grounded, but nothing double-checks
+  it.** The prompt says not to mention any song other than the ones
+  already retrieved. There is no extra code that reads the response back
+  and checks every title mentioned. That means the summary could still
+  slip, since this only asks nicely instead of verifying it in code. More
+  on this is in the Limitations section of `model_card.md`.
+- **A failed summary falls back gracefully. A broken setup stops right
+  away.** If the Gemini call fails or times out, the app falls back to a
+  plain summary instead of crashing. But if something is actually
+  missing, like the `GEMINI_API_KEY` or the song catalog file, the app
+  stops right away and says what is wrong, since that is not something it
+  can fix on its own.
+- **Caching so the app does not redo the same work twice.** Both
+  `recommend()` and `explain_recommendation()` need the same ranked list
+  for a given MBTI type. The results are saved the first time in
+  `Recommender._retrieve_all`, so the app reuses them instead of
+  re-embedding and re-scoring the whole catalog again.
 
 ---
 
-## Limitations and Risks
+## Testing Summary
 
-This recommender only works on a small, unevenly distributed catalog, and it has no sense of lyrics, language, or popularity, so it can end up favoring whichever genre, mood, or trait happens to be most common in the data. See `model_card.md` for a deeper look at where that shows up.
+**What worked.** `tests/test_retriever.py` checks that retrieval returns
+results sorted from most similar to least similar, and that a type's own
+songs show up in its top results. `tests/test_recommender.py` checks that
+`recommend()` ranks a same-type song highest in a small two-song catalog,
+that `explain_recommendation()` returns a non-empty explanation, and, as a
+guardrail check, that `generate_recommendation_summary()`'s output
+actually names the retrieved song's title. That title check is a simple
+way to see if the summary stayed grounded. All 5 tests pass. The retriever
+tests do not need a Gemini API key. The summary test makes a real Gemini
+call and is not mocked.
+
+**What did not work at first.** The first version of retrieval did not
+know about MBTI types and had no re-ranking. Manual testing showed that a
+semantically close song from a different MBTI type could sometimes rank
+higher than the correct type's own song. That is why
+`EXACT_TYPE_MATCH_BONUS` was added. A malformed or missing CSV file and a
+missing API key first caused raw tracebacks, such as a `KeyError` or a
+`FileNotFoundError` printed straight to the terminal. This was fixed by
+adding explicit validation and a top-level `try/except` in `main()`. This
+fix was checked by feeding in a CSV file missing required columns and
+confirming that a clear `ValueError` shows up before any embedding work
+happens.
+
+**What I learned.** A retrieval system's ranking quality depends a lot on
+what gets embedded. If the text for the song's trait and description does not describe the song well, the ranking
+will not be very good, no matter how the rest of the code is written. The
+ranking quality also depends on how the system breaks ties between a
+song's MBTI label and how semantically similar it actually is to the
+query. At first the retrieval step ignored labels completely, so a song
+tagged for one MBTI type could rank above a better-labeled match just
+because its wording happened to be closer to the query. Adding a small,
+clear re-ranking bonus fixed this, and it was a simpler fix than trying to
+make the embedding model itself smarter. I also learned that grounding an
+LLM's output through instructions alone is a soft guarantee, not a hard
+one. The prompt tells Gemini not to mention songs outside the retrieved
+list, and in testing it followed that rule, but nothing in the code
+actually forces it to. A future version of the prompt, or a different
+model, could still break that rule. That is why it is listed as a
+limitation instead of treated as fully solved.
 
 ---
 
 ## Reflection
 
-Read and complete `model_card.md`:
+Building this project changed how I think about "AI-powered" features.
+Most of the actual engineering here is not the model call itself. It is
+the plumbing around the model, such as validating inputs, deciding what
+happens when the network call fails, and caching so the same work does
+not get repeated. The Gemini call is just one function. Making sure the
+whole system behaves predictably around that one function took most of
+the work. That is a pattern I now expect to see in any AI-integrated
+system, not just this one.
 
-[**Model Card**](model_card.md)
-
-Building this showed me that a recommender is really just a set of weighted rules applied to whatever data it happens to have, not some deeper understanding of taste. Building the scoring rule made it clear how easily a system like this can turn into a source of bias too. It is not doing anything malicious, it is just reflecting whatever imbalance already exists in its catalog or leaning too hard on whichever feature has the highest weight, and a listener with less common taste ends up with a worse experience without the system ever meaning for that to happen.
+[model_card.md](model_card.md).

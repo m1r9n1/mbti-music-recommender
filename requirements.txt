@@ -1,3 +1,7 @@
 pandas
 pytest
 streamlit
+numpy
+google-genai
+python-dotenv
+sentence-transformers
