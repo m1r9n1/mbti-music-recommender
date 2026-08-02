@@ -1,6 +1,42 @@
-import csv
-from typing import List, Dict, Tuple, Optional
-from dataclasses import dataclass, asdict
+import logging
+import os
+from typing import Dict, List, Tuple
+from dataclasses import dataclass, field, asdict
+
+from dotenv import load_dotenv
+from google import genai
+from google.genai import errors as genai_errors
+
+from src.mbti_traits import build_query_text
+from src.retriever import SongRetriever, load_mbti_songs
+
+load_dotenv()
+
+logger = logging.getLogger(__name__)
+
+GENERATION_MODEL_NAME = "gemini-flash-latest"
+
+
+def _resolve_api_key(api_key: str = None) -> str:
+    """Returns the Gemini API key to use, raising a clear, actionable error
+    instead of a bare KeyError if none is configured. Only generation needs
+    this now — retrieval runs on a local sentence-transformers model."""
+    api_key = api_key or os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        raise RuntimeError(
+            "GEMINI_API_KEY is not set. Create a .env file in the project "
+            "root with GEMINI_API_KEY=your-key-here (see .env.example), or "
+            "get a free-tier key at https://aistudio.google.com/apikey."
+        )
+    return api_key
+
+# Added to a song's cosine similarity score when ranking, if its own
+# mbti_type exactly matches the queried type. Cosine similarity is bounded
+# in [-1, 1], so this is a soft weight, not a hard guarantee: a strong
+# enough semantic match from a *different* type can still outrank a weak
+# same-type match, the same way GENRE_MATCH_POINTS/MOOD_MATCH_POINTS used
+# to nudge (not force) the old scoring recommender's ranking.
+EXACT_TYPE_MATCH_BONUS = 0.5
 
 @dataclass
 class Song:
@@ -11,13 +47,9 @@ class Song:
     id: int
     title: str
     artist: str
-    genre: str
-    mood: str
-    energy: float
-    tempo_bpm: float
-    valence: float
-    danceability: float
-    acousticness: float
+    mbti_type: str
+    traits: List[str] = field(default_factory=list)
+    description: str = ""
 
 @dataclass
 class UserProfile:
@@ -25,129 +57,95 @@ class UserProfile:
     Represents a user's taste preferences.
     Required by tests/test_recommender.py
     """
-    favorite_genre: str
-    favorite_mood: str
-    target_energy: float
-    likes_acoustic: bool
-    target_tempo: Optional[float] = None
-    favorite_valence: Optional[float] = None
+    mbti_type: str
 
 class Recommender:
     """
-    OOP implementation of the recommendation logic.
-    Required by tests/test_recommender.py
+    OOP implementation of the recommendation logic, backed by
+    SongRetriever's RAG-style embedding retrieval (see src/retriever.py).
     """
-    def __init__(self, songs: List[Song]):
+    def __init__(self, songs: List[Song], api_key: str = None):
         self.songs = songs
+        self.retriever = SongRetriever([asdict(song) for song in songs])
+        self.client = genai.Client(api_key=_resolve_api_key(api_key))
+        self._results_cache = {}
+
+    def _retrieve_all(self, mbti_type: str) -> List[Tuple[Dict, float]]:
+        """Returns every song ranked against an MBTI type's query text,
+        cached per type so recommend() and explain_recommendation() share
+        one retrieval instead of each re-embedding the query and
+        re-scoring the whole catalog.
+
+        SongRetriever.retrieve() is type-blind: it ranks purely by semantic
+        similarity, so a song labeled for a different MBTI type can
+        outrank an exact match if its text happens to embed closer to the
+        query. EXACT_TYPE_MATCH_BONUS re-ranks by score plus that bonus for
+        exact matches, so the queried type is favored without discarding
+        semantic similarity as the underlying signal. The cached (and
+        returned) scores stay the raw similarity, so explain_recommendation
+        still reports the true semantic score, not the boosted one."""
+        if mbti_type not in self._results_cache:
+            query_text = build_query_text(mbti_type)
+            results = self.retriever.retrieve(query_text, k=len(self.songs))
+            results.sort(
+                key=lambda pair: pair[1] + (EXACT_TYPE_MATCH_BONUS if pair[0]["mbti_type"] == mbti_type else 0.0),
+                reverse=True,
+            )
+            self._results_cache[mbti_type] = results
+        return self._results_cache[mbti_type]
 
     def recommend(self, user: UserProfile, k: int = 5) -> List[Song]:
-        user_prefs = asdict(user)
-        song_dicts = [asdict(song) for song in self.songs]
-        scored = recommend_songs(user_prefs, song_dicts, k=k)
+        results = self._retrieve_all(user.mbti_type)[:k]
         songs_by_id = {song.id: song for song in self.songs}
-        return [songs_by_id[song_dict["id"]] for song_dict, _, _ in scored]
+        return [songs_by_id[song_dict["id"]] for song_dict, _score in results]
 
     def explain_recommendation(self, user: UserProfile, song: Song) -> str:
-        _, reasons = score_song(asdict(user), asdict(song))
-        return "; ".join(reasons) if reasons else "No matching preferences."
+        scores_by_id = {song_dict["id"]: score for song_dict, score in self._retrieve_all(user.mbti_type)}
+        return f"semantic similarity to {user.mbti_type} traits: {scores_by_id[song.id]:.2f}"
 
-def load_songs(csv_path: str) -> List[Dict]:
-    """Loads songs from a CSV file, casting numeric fields from str to float/int."""
-    int_fields = {"id"}
-    float_fields = {"energy", "tempo_bpm", "valence", "danceability", "acousticness"}
+    def generate_recommendation_summary(self, user: UserProfile, songs: List[Song]) -> str:
+        """Uses Gemini to write a personalized recommendation summary that is
+        grounded strictly in the given (already-retrieved) songs — the
+        prompt explicitly forbids referencing any song outside this list,
+        so the response can't hallucinate titles/artists that were never
+        retrieved. Falls back to a plain, non-generated summary if the
+        Gemini call fails, so a live API error never crashes the CLI."""
+        song_context = "\n".join(
+            f'- "{song.title}" by {song.artist} (MBTI type: {song.mbti_type}, '
+            f'traits: {", ".join(song.traits)}): {song.description}'
+            for song in songs
+        )
+        prompt = (
+            f"A listener has the MBTI personality type {user.mbti_type}. "
+            f"Here are songs retrieved for them, each with its trait tags and description:\n\n"
+            f"{song_context}\n\n"
+            f"Write a short (3-5 sentence) personalized recommendation summary explaining "
+            f"why these songs fit a {user.mbti_type} listener. "
+            f"Only reference the songs listed above by title and artist — do not mention, "
+            f"imply, or invent any other song, artist, or album."
+        )
+        try:
+            response = self.client.models.generate_content(
+                model=GENERATION_MODEL_NAME, contents=prompt
+            )
+            return response.text.strip()
+        except genai_errors.APIError:
+            logger.exception("Gemini generation failed; falling back to a plain summary")
+            titles = ", ".join(f'"{song.title}" by {song.artist}' for song in songs)
+            return f"Recommended for {user.mbti_type}: {titles}."
 
-    songs = []
-    with open(csv_path, newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            for field in int_fields:
-                row[field] = int(row[field])
-            for field in float_fields:
-                row[field] = float(row[field])
-            songs.append(row)
-    return songs
-
-GENRE_MATCH_POINTS = 0.5
-MOOD_MATCH_POINTS = 1.0
-ENERGY_WEIGHT = 1.5
-VALENCE_WEIGHT = 1.0
-TEMPO_WEIGHT = 1.0
-DANCEABILITY_WEIGHT = 1.0
-TEMPO_SCALE = 40.0  # bpm difference beyond this earns zero tempo points
-ACOUSTIC_BONUS = 0.5
-ACOUSTIC_THRESHOLD = 0.6
-ARTIST_REPEAT_PENALTY = 1.0  # subtracted per already-selected song from the same artist
-
-def score_song(user_prefs: Dict, song: Dict) -> Tuple[float, List[str]]:
-    """Scores a song against user preferences, returning (score, reasons)."""
-    score = 0.0
-    reasons = []
-
-    if song["genre"].lower() == user_prefs["favorite_genre"].lower():
-        score += GENRE_MATCH_POINTS
-        reasons.append(f"genre match (+{GENRE_MATCH_POINTS})")
-
-    if song["mood"].lower() == user_prefs["favorite_mood"].lower():
-        score += MOOD_MATCH_POINTS
-        reasons.append(f"mood match (+{MOOD_MATCH_POINTS})")
-
-    energy_points = ENERGY_WEIGHT * max(0.0, 1 - abs(song["energy"] - user_prefs["target_energy"]))
-    if energy_points > 0:
-        score += energy_points
-        reasons.append(f"energy similarity (+{energy_points:.2f})")
-
-    favorite_valence = user_prefs.get("favorite_valence")
-    if favorite_valence is not None:
-        valence_points = VALENCE_WEIGHT * max(0.0, 1 - abs(song["valence"] - favorite_valence))
-        if valence_points > 0:
-            score += valence_points
-            reasons.append(f"valence similarity (+{valence_points:.2f})")
-
-    target_tempo = user_prefs.get("target_tempo")
-    if target_tempo is not None:
-        tempo_diff = abs(song["tempo_bpm"] - target_tempo)
-        tempo_points = TEMPO_WEIGHT * max(0.0, 1 - tempo_diff / TEMPO_SCALE)
-        if tempo_points > 0:
-            score += tempo_points
-            reasons.append(f"tempo similarity (+{tempo_points:.2f})")
-
-    favorite_danceability = user_prefs.get("favorite_danceability")
-    if favorite_danceability is not None:
-        danceability_points = DANCEABILITY_WEIGHT * max(0.0, 1 - abs(song["danceability"] - favorite_danceability))
-        if danceability_points > 0:
-            score += danceability_points
-            reasons.append(f"danceability similarity (+{danceability_points:.2f})")
-
-    if user_prefs.get("likes_acoustic") and song["acousticness"] >= ACOUSTIC_THRESHOLD:
-        score += ACOUSTIC_BONUS
-        reasons.append(f"acoustic bonus (+{ACOUSTIC_BONUS})")
-
-    return round(score, 2), reasons
-
-def recommend_songs(user_prefs: Dict, songs: List[Dict], k: int = 5) -> List[Tuple[Dict, float, str]]:
-    """Scores every song, then greedily picks the top k, applying a soft penalty
-    for each additional song already selected from the same artist so listeners
-    are more likely to be exposed to new artists rather than repeats."""
-    remaining = [
-        (song, score, reasons)
-        for song in songs
-        for score, reasons in [score_song(user_prefs, song)]
+def load_songs(csv_path: str) -> List[Song]:
+    """Loads songs from an MBTI song catalog CSV (see retriever.load_mbti_songs)
+    into Song dataclass instances."""
+    rows = load_mbti_songs(csv_path)
+    return [
+        Song(
+            id=row["id"],
+            title=row["title"],
+            artist=row["artist"],
+            mbti_type=row["mbti_type"],
+            traits=row["traits"],
+            description=row["description"],
+        )
+        for row in rows
     ]
-
-    selected = []
-    artist_counts: Dict[str, int] = {}
-    for _ in range(min(k, len(remaining))):
-        best_index = 0
-        best_effective_score = float("-inf")
-        for index, (song, score, _reasons) in enumerate(remaining):
-            repeat_count = artist_counts.get(song["artist"], 0)
-            effective_score = score - ARTIST_REPEAT_PENALTY * repeat_count
-            if effective_score > best_effective_score:
-                best_effective_score = effective_score
-                best_index = index
-
-        song, score, reasons = remaining.pop(best_index)
-        artist_counts[song["artist"]] = artist_counts.get(song["artist"], 0) + 1
-        selected.append((song, score, "; ".join(reasons)))
-
-    return selected
