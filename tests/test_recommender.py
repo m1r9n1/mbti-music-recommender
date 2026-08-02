@@ -1,6 +1,7 @@
 from src.recommender import Song, UserProfile, Recommender
 
 def make_small_recommender() -> Recommender:
+    """Builds a Recommender over a tiny two-song, two-MBTI-type catalog for fast tests."""
     songs = [
         Song(
             id=1,
@@ -23,6 +24,7 @@ def make_small_recommender() -> Recommender:
 
 
 def test_recommend_returns_songs_sorted_by_relevance():
+    """recommend() ranks the same-type song highest for a matching MBTI query."""
     user = UserProfile(mbti_type="INFP")
     rec = make_small_recommender()
     results = rec.recommend(user, k=2)
@@ -33,6 +35,7 @@ def test_recommend_returns_songs_sorted_by_relevance():
 
 
 def test_explain_recommendation_returns_non_empty_string():
+    """explain_recommendation() always returns a non-empty explanation string."""
     user = UserProfile(mbti_type="INFP")
     rec = make_small_recommender()
     song = rec.songs[0]
@@ -43,6 +46,7 @@ def test_explain_recommendation_returns_non_empty_string():
 
 
 def test_generate_recommendation_summary_only_mentions_retrieved_songs():
+    """Grounding guardrail: the generated summary names a retrieved song's title."""
     user = UserProfile(mbti_type="INFP")
     rec = make_small_recommender()
     recommended = rec.recommend(user, k=1)

@@ -3,6 +3,7 @@ from src.mbti_traits import build_query_text
 
 
 def test_retrieve_returns_k_songs_sorted_by_score():
+    """retrieve() returns exactly k songs, ordered from most to least similar."""
     songs = load_mbti_songs("data/mbti_songs.csv")
     retriever = SongRetriever(songs)
 
@@ -14,6 +15,7 @@ def test_retrieve_returns_k_songs_sorted_by_score():
 
 
 def test_retrieve_surfaces_matching_type_in_top_results():
+    """A song labeled for the queried MBTI type shows up in its own top results."""
     songs = load_mbti_songs("data/mbti_songs.csv")
     retriever = SongRetriever(songs)
 
