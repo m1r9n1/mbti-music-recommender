@@ -210,8 +210,81 @@ Enter your MBTI type (e.g. INFP): INTJ
 
 Top Recommendations for INTJ
 ========================================
-...
+
+As an INTJ, your strategic mind and visionary worldview resonate with music that balances deep contemplation with fierce independence. "Imagine" by John Lennon speaks to your idealistic and visionary nature, while "Clint Eastwood" by Gorillaz reflects a cool, cerebral approach to resilience. The intense, singular focus of "Everlong" by Foo Fighters pairs naturally with the quiet, analytical disillusionment explored in "No Surprises" by Radiohead. Finally, "Numb" by Linkin Park captures your guarded drive to forge your own path free from the overburdening expectations of others.
+
+1. Imagine by John Lennon  [semantic similarity to INTJ traits: 0.75]
+     - MBTI type: INTJ
+     - A sweeping call to reimagine the world beyond current divisions.
+
+2. Clint Eastwood by Gorillaz  [semantic similarity to INTJ traits: 0.50]
+     - MBTI type: INTJ
+     - A cool, calculated meditation on resilience and outlasting doubt.
+
+3. Everlong by Foo Fighters  [semantic similarity to INTJ traits: 0.44]
+     - MBTI type: INTJ
+     - A relentless pursuit of one all-consuming, defining connection.
+
+4. No Surprises by Radiohead  [semantic similarity to INTJ traits: 0.36]
+     - MBTI type: INTJ
+     - A subdued critique of a life reduced to comfortable numbness.
+
+5. Numb by Linkin Park  [semantic similarity to INTJ traits: 0.33]
+     - MBTI type: INTJ
+     - A frustrated demand to be seen beyond others' expectations.
 ```
+
+---
+
+## Reliability and Guardrail Evidence
+
+These are command outputs showing the app's error handling
+and the automated test suite passing.
+
+### Malformed catalog file
+
+Calling the loader on a CSV that is missing required columns raises a
+clear error instead of a confusing crash deep in the embedding code:
+
+```
+>>> from src.retriever import load_mbti_songs
+>>> load_mbti_songs('bad_catalog.csv')
+ValueError: bad_catalog.csv is missing required column(s): artist, description, traits
+```
+
+### Missing catalog file
+
+Calling the loader on a path that does not exist raises Python's normal
+`FileNotFoundError`, which `main()` catches and turns into a plain-English
+message telling the user to run the app from the project root:
+
+```
+>>> from src.retriever import load_mbti_songs
+>>> load_mbti_songs('data/does_not_exist.csv')
+FileNotFoundError: [Errno 2] No such file or directory: 'data/does_not_exist.csv'
+```
+
+### Automated test suite
+
+```
+$ pytest -v
+============================= test session starts =============================
+platform win32 -- Python 3.14.5, pytest-9.1.1, pluggy-1.6.0
+collected 5 items
+
+tests/test_recommender.py::test_recommend_returns_songs_sorted_by_relevance PASSED [ 20%]
+tests/test_recommender.py::test_explain_recommendation_returns_non_empty_string PASSED [ 40%]
+tests/test_recommender.py::test_generate_recommendation_summary_only_mentions_retrieved_songs PASSED [ 60%]
+tests/test_retriever.py::test_retrieve_returns_k_songs_sorted_by_score PASSED [ 80%]
+tests/test_retriever.py::test_retrieve_surfaces_matching_type_in_top_results PASSED [100%]
+
+======================== 5 passed, 1 warning in 27.79s ========================
+```
+
+`test_generate_recommendation_summary_only_mentions_retrieved_songs` is the
+grounding guardrail check: it makes a real Gemini call and asserts the
+generated summary actually names the retrieved song's title, rather than
+mentioning something outside the retrieved set.
 
 ---
 
@@ -306,4 +379,6 @@ whole system behaves predictably around that one function took most of
 the work. That is a pattern I now expect to see in any AI-integrated
 system, not just this one.
 
+For the graded responsible-AI reflection (AI collaboration, one helpful
+and one flawed AI suggestion, and system limitations), see
 [model_card.md](model_card.md).
